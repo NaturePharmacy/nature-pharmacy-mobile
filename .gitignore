@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+
+# React Native
+.expo/
+dist/
+web-build/
+
+# Native builds
+ios/Pods/
+ios/build/
+android/.gradle/
+android/app/build/
+android/build/
+*.apk
+*.aab
+*.ipa
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+
+# Temporary files
+*.log
+*.tmp
+.cache/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Metro bundler
+.metro-health-check*
+
+# Sentry
+.sentryclirc
+
+# Keystore (keep this private!)
+*.keystore
+*.jks
+google-play-key.json

@@ -1,0 +1,127 @@
+# Nature Pharmacy Mobile - Fastlane Configuration
+# Documentation: https://docs.fastlane.tools
+
+default_platform(:ios)
+
+# iOS Configuration
+platform :ios do
+  desc "Push a new beta build to TestFlight"
+  lane :beta do
+    increment_build_number(xcodeproj: "ios/NaturePharmacyMobile.xcodeproj")
+    build_app(
+      workspace: "ios/NaturePharmacyMobile.xcworkspace",
+      scheme: "NaturePharmacyMobile",
+      export_method: "app-store"
+    )
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Push a new release build to App Store"
+  lane :release do
+    increment_build_number(xcodeproj: "ios/NaturePharmacyMobile.xcodeproj")
+    build_app(
+      workspace: "ios/NaturePharmacyMobile.xcworkspace",
+      scheme: "NaturePharmacyMobile",
+      export_method: "app-store"
+    )
+    upload_to_app_store(
+      submit_for_review: false,
+      automatic_release: false,
+      force: true,
+      skip_metadata: false,
+      skip_screenshots: false
+    )
+  end
+
+  desc "Build for testing"
+  lane :build do
+    build_app(
+      workspace: "ios/NaturePharmacyMobile.xcworkspace",
+      scheme: "NaturePharmacyMobile",
+      export_method: "development",
+      output_directory: "./build",
+      output_name: "NaturePharmacy.ipa"
+    )
+  end
+end
+
+# Android Configuration
+platform :android do
+  desc "Build and push to internal testing track"
+  lane :internal do
+    gradle(
+      task: "clean bundleRelease",
+      project_dir: "android/"
+    )
+    upload_to_play_store(
+      track: "internal",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Push to beta track"
+  lane :beta do
+    gradle(
+      task: "clean bundleRelease",
+      project_dir: "android/"
+    )
+    upload_to_play_store(
+      track: "beta",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab"
+    )
+  end
+
+  desc "Push to production"
+  lane :release do
+    gradle(
+      task: "clean bundleRelease",
+      project_dir: "android/"
+    )
+    upload_to_play_store(
+      track: "production",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      rollout: "0.1" # 10% rollout initially
+    )
+  end
+
+  desc "Build APK for testing"
+  lane :build do
+    gradle(
+      task: "clean assembleRelease",
+      project_dir: "android/"
+    )
+  end
+end
+
+# Shared lanes
+desc "Increment version number"
+lane :bump_version do |options|
+  type = options[:type] || "patch" # major, minor, patch
+
+  # Update package.json version
+  package = JSON.parse(File.read("package.json"))
+  version_parts = package["version"].split(".")
+
+  case type
+  when "major"
+    version_parts[0] = (version_parts[0].to_i + 1).to_s
+    version_parts[1] = "0"
+    version_parts[2] = "0"
+  when "minor"
+    version_parts[1] = (version_parts[1].to_i + 1).to_s
+    version_parts[2] = "0"
+  when "patch"
+    version_parts[2] = (version_parts[2].to_i + 1).to_s
+  end
+
+  new_version = version_parts.join(".")
+  package["version"] = new_version
+  File.write("package.json", JSON.pretty_generate(package))
+
+  UI.success("Version bumped to #{new_version}")
+end
