@@ -1,0 +1,111 @@
+workflows:
+
+  # ─── iOS — App Store ──────────────────────────────────────────────────────────
+  ios-release:
+    name: iOS App Store Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.naturepharmacy.mobile
+      groups:
+        - app_store_connect   # APP_STORE_CONNECT_PRIVATE_KEY, KEY_IDENTIFIER, ISSUER_ID
+      vars:
+        BUNDLE_ID: com.naturepharmacy.mobile
+        XCODE_SCHEME: NaturePharmacyMobile
+        XCODE_WORKSPACE: NaturePharmacyMobile.xcworkspace
+      node: 18.19.0
+      xcode: latest
+      cocoapods: default
+
+    cache:
+      cache_paths:
+        - $HOME/Library/Caches/CocoaPods
+        - $FCI_BUILD_DIR/node_modules
+
+    scripts:
+      - name: Install npm dependencies
+        script: npm install
+
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios
+          pod install
+
+      - name: Apply code signing profiles
+        script: xcode-project use-profiles
+
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "ios/$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    publishing:
+      email:
+        recipients:
+          - contact@naturepharmacy.com
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        cancel_previous_submissions: true
+
+  # ─── Android — Play Store ─────────────────────────────────────────────────────
+  android-release:
+    name: Android Play Store Release
+    max_build_duration: 60
+    instance_type: linux_x2
+
+    environment:
+      android_signing:
+        - naturepharmacy_keystore   # Keystore uploadé dans Codemagic > Code Signing
+      groups:
+        - google_play               # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      vars:
+        PACKAGE_NAME: com.naturepharmacy.mobile
+      node: 18.19.0
+      java: 17
+
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $FCI_BUILD_DIR/node_modules
+
+    scripts:
+      - name: Install npm dependencies
+        script: npm install
+
+      - name: Build Android AAB
+        script: |
+          cd android
+          ./gradlew bundleRelease \
+            -PversionCode=$BUILD_NUMBER \
+            --no-daemon
+
+    artifacts:
+      - android/app/build/outputs/bundle/release/*.aab
+      - android/app/build/outputs/apk/release/*.apk
+
+    publishing:
+      email:
+        recipients:
+          - contact@naturepharmacy.com
+        notify:
+          success: true
+          failure: true
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: false
